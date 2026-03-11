@@ -11,3 +11,8 @@ class AccountCurrency(Enum):
     EUR = 'EUR'
     KZT = 'KZT'
     CNY = 'CNY'
+
+class AssetType(Enum):
+    STOCK = 'stock'
+    ETF = 'etf'
+    BOND = 'bonds'

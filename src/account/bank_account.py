@@ -1,15 +1,17 @@
 import uuid
 from .base import AbstractAccount
-from .base import AccountFrozenError, AccountClosedError, InvalidOperationError, InsufficientFundsError
-from .enums import AccountStatus, AccountCurrency
+from .enums import AccountCurrency
 
 class BankAccount(AbstractAccount):
-    def __init__(self, owner_name, status=AccountStatus.ACTIVE, id=None, balance=0,  currency=AccountCurrency.RUB):
+    def __init__(self,  id=None, currency=AccountCurrency.RUB, *args, **kwargs):
         if id is None:
             id = str(uuid.uuid4())[:8]
         
-        super().__init__(owner_name, id, balance, status)
-        self.currency = currency
+        super().__init__(id=id, *args, **kwargs)
+        self.currency:AccountCurrency = currency
+
+    def get_account_info(self):
+        return {**super().get_account_info(), **{'currency' : self.currency.value}}
 
     def __str__(self):
          return (

@@ -12,6 +12,9 @@ venv/
 ENV/
 .venv/
 
+# Idea
+.idea/
+
 # Jupyter Notebook
 .ipynb_checkpoints/
 *.ipynb_checkpoints
