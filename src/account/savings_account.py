@@ -23,5 +23,5 @@ class SavingsAccount(BankAccount):
     def __str__(self):
         return (f"{super().__str__()} |"
                 f"Min balance: {self.min_balance} | "
-                f"Monthly interest: {self.monthly_interest}"
+                f"Monthly interest: {self.monthly_interest}%"
         )
