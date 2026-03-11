@@ -31,6 +31,10 @@ class AbstractAccount(ABC):
         if self.status == AccountStatus.CLOSED:
             raise AccountClosedError
 
+    def _check_operation_amount_type(self, amount:int):
+        if not isinstance(amount, int) or isinstance(amount, bool):
+            raise InvalidOperationError(f"Invalid type for amount: {type(amount).__name__}")
+
     def _check_operation_amount(self, amount:int):
         if amount < 0:
             raise InvalidOperationError
@@ -49,6 +53,7 @@ class AbstractAccount(ABC):
 
     def withdraw(self, amount:int):
         self._check_account_status()
+        self._check_operation_amount_type(amount)
         self._check_operation_amount(amount)
         self._check_withdraw_allowed(amount)
             

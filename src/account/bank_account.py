@@ -5,7 +5,7 @@ from .enums import AccountCurrency
 class BankAccount(AbstractAccount):
     def __init__(self,  id=None, currency=AccountCurrency.RUB, *args, **kwargs):
         if id is None:
-            id = str(uuid.uuid4())[:8]
+            id = str(uuid.uuid4())
         
         super().__init__(id=id, *args, **kwargs)
         self.currency:AccountCurrency = currency
