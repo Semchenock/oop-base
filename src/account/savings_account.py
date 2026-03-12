@@ -14,7 +14,7 @@ class SavingsAccount(BankAccount):
         return super().withdraw(amount)
     
     def apply_monthly_interest(self):
-        interest = self.balance*(self.monthly_interest/100)
+        interest:int = round(self.balance*(self.monthly_interest/100))
         self.deposit(interest)
 
     def get_account_info(self):
