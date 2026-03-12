@@ -45,6 +45,7 @@ class AbstractAccount(ABC):
 
     def deposit(self, amount:int):
         self._check_account_status()
+        self._check_operation_amount_type(amount)
         self._check_operation_amount(amount)
         
         self._balance += amount
