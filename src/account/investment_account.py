@@ -12,7 +12,6 @@ class Asset:
     def __repr__(self):
         return f"{self.name}({self.asset_type}, price={self.price}, interest={self.yearly_interest}%)"
 
-
 class InvestmentAccount(BankAccount):
     def __init__(self, assets, *args, **kwargs):
         super().__init__(*args, **kwargs)
