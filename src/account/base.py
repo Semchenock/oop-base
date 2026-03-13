@@ -68,3 +68,12 @@ class AbstractAccount(ABC):
             'status' : self.status.value,
             'balance' : self.balance,
         }
+
+    def close_account(self):
+        self.status = AccountStatus.CLOSED
+
+    def freeze_account(self):
+        self.status = AccountStatus.FROZEN
+
+    def unfreeze_account(self):
+        self.status = AccountStatus.ACTIVE
