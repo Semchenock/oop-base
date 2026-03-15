@@ -1,6 +1,6 @@
 import uuid
 
-from account.enums import AccountStatus
+from account.enums import AccountStatus, AccountCurrency
 
 from typing import Optional
 from .client import Client, InvalidPassword, FraudType
@@ -9,6 +9,8 @@ from datetime import datetime, time
 
 from .enums import FraudType
 
+from transaction.transaction_queue import TransactionQueue
+from transaction.transaction_processor import TransactionProcessor
 
 class AccountNotFound(Exception):
     pass
@@ -43,6 +45,16 @@ class Bank:
         self.sessions:list[Session] = []
         self.clients_sessions_map: dict[str, list[str]] = {}
         self.sessions_clients_map: dict[str, str] = {}
+        self.main_currency:AccountCurrency = AccountCurrency.USD
+        self.main_currency_course: dict[AccountCurrency, float] = {
+            AccountCurrency.RUB: 79.91,
+            AccountCurrency.USD: 1,
+            AccountCurrency.EUR: 0.87,
+            AccountCurrency.KZT: 0.0020,
+            AccountCurrency.CNY: 0.14,
+        }
+        self.transaction_queue = TransactionQueue()
+        self.transaction_processor = TransactionProcessor(self, self.transaction_queue)
 
     def add_client(self,client:Client):
         self.clients.append(client)
@@ -153,12 +165,15 @@ class Bank:
         if time(PROHIBITED_TIME_START_HOUR, 0) < now < time(PROHIBITED_TIME_END_HOUR, 0):
             raise ProhibitedOperationTime
 
-    def _get_account_for_operation(self, session_id: str, account_id: str, amount) -> AccountType | None:
+    def _get_client_from_session(self, session_id: str) -> Client:
         client = self.search_client_by_session_id(session_id)
 
         if client is None:
             raise ClientNotFound
 
+        return client
+
+    def _check_fraud(self, client: Client, amount: int):
         try:
             self._is_operations_allowed()
         except ProhibitedOperationTime:
@@ -168,6 +183,7 @@ class Bank:
         if amount > MAX_AMOUNT_PER_OPERATION:
             client.add_fraud(FraudType.BIG_TRANSACTION)
 
+    def _get_account_for_operation(self, client: Client, account_id: str, amount) -> AccountType | None:
         client_account_ids = self.clients_accounts_map.get(client.client_id, [])
 
         if account_id not in client_account_ids:
@@ -176,18 +192,26 @@ class Bank:
         return  next((acc for acc in self.accounts if acc.id == account_id), None)
 
     def withdraw(self, session_id: str, account_id: str, amount: int):
-        client_account = self._get_account_for_operation(session_id, account_id, amount)
+        client = self._get_client_from_session(session_id)
+        self._check_fraud(client, amount)
+        client_account = self._get_account_for_operation(client, account_id, amount)
 
         if client_account is None:
             raise AccountNotFound
 
-
         client_account.withdraw(amount)
 
     def deposit(self, session_id: str, account_id: str, amount: int):
-        client_account = self._get_account_for_operation(session_id, account_id, amount)
+        client = self._get_client_from_session(session_id)
+        self._check_fraud(client, amount)
+        client_account = self._get_account_for_operation(client, account_id, amount)
 
         if client_account is None:
             raise AccountNotFound
 
         client_account.deposit(amount)
+
+    def convert_currency(self,amount: int, from_currency: AccountCurrency, to_currency: AccountCurrency) -> int:
+        amount_in_main_currency = amount / self.main_currency_course[from_currency]
+        amount_in_to_currency = amount_in_main_currency * self.main_currency_course[to_currency]
+        return round(amount_in_to_currency)
