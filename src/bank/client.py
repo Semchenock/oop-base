@@ -1,3 +1,6 @@
+import os
+import hashlib
+
 from .enums import ClientAccountStatus, FraudType
 
 from datetime import date, datetime
@@ -34,9 +37,15 @@ class Client:
         self.contacts:list[Contact] = contacts
         self.date_of_birth:date = date_of_birth
         self.login=login
-        self.password=password
+        self.salt = os.urandom(16)
+        self.password_hash = self._hash_password(password, self.salt)
         self.try_count:int = 0
         self.frauds:list[Fraud] = []
+
+    def _hash_password(self, password: str, salt: bytes) -> str:
+        password_bytes = password.encode()
+        hash_object = hashlib.sha256(salt + password_bytes)
+        return hash_object.hexdigest()
 
     def close_account(self):
         self.status = ClientAccountStatus.CLOSED
@@ -62,10 +71,14 @@ class Client:
         elif self.status == ClientAccountStatus.CLOSED:
             raise ClientAccountClosed
 
+    def _verify_password(self, password: str) -> bool:
+         hash_to_check = self._hash_password(password, self.salt)
+         return hash_to_check == self.password_hash
+
     def validate_password(self, password:str):
         self._check_account_status()
 
-        if self.password == password:
+        if self._verify_password(password):
             self.try_count = 0
             return
 

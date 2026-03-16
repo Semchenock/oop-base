@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .transaction_queue import TransactionQueue, QueueIsEmpty
 from typing import TYPE_CHECKING
 

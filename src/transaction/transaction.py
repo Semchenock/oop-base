@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -34,7 +36,7 @@ class Transaction:
         return is_executable_status and is_executable_time
 
     def execute(self, bank:Bank):
-        deposit_amount = self.amount * round((100 - self.commission) / 100)
+        deposit_amount = round(self.amount * (100 - self.commission) / 100)
         converted_deposit_amount = bank.convert_currency(deposit_amount, self.from_account.currency, self.to_account.currency)
 
         try:

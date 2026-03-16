@@ -98,6 +98,9 @@ class Bank:
         Возвращает список аккаунтов по account_id или client_id.
         Если ничего не передано, возвращает [].
         """
+        if account_id is None and client_id is None:
+            return []
+
         results = self.accounts
 
         if account_id is not None:
