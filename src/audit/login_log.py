@@ -22,3 +22,14 @@ class LoginLog(BaseLog):
             self.set_log_level(LogLevel.ERROR)
         elif self.status == LoginStatus.FAILED:
             self.set_log_level(LogLevel.WARNING)
+
+    def __str__(self):
+        session_info = f" | Session: {self.session_id}" if self.session_id else ""
+        sessions_count_info = f" | Active Sessions: {self.sessions_count}" if self.sessions_count is not None else ""
+        return (
+            f"[{self.created_at.strftime('%Y-%m-%d %H:%M:%S')}] "
+            f"LoginLog | Client ID: {self.client_id} | "
+            f"Status: {self.status.name} | "
+            f"Try Count: {self.try_count}{session_info}{sessions_count_info} | "
+            f"Level: {self.log_level.name}"
+        )

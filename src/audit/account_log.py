@@ -17,3 +17,12 @@ class AccountLog(BaseLog):
 
         elif self.action == AccountActionsEnum.CLOSE:
             self.set_log_level(LogLevel.WARNING)
+
+    def __str__(self):
+        return (
+            f"[{self.created_at.strftime('%Y-%m-%d %H:%M:%S')}] "
+            f"AccountLog | ID: {self.account_id} | "
+            f"Action: {self.action.name} | "
+            f"Level: {self.log_level.name}"
+        )
+

@@ -6,11 +6,13 @@ from typing import Optional
 
 from audit.audit_log import AuditLog
 from audit.enums import TransactionEntity, TransactionDirection, AccountActionsEnum, LoginStatus
+from audit.risk_analyzer import RiskAnalyzer
 from audit.transaction_log import TransactionLog
 from audit.account_log import AccountLog
 from audit.login_log import LoginLog
 from transaction.enums import TransactionStatus
 from .client import Client, InvalidPassword
+from .constants import MAX_SESSIONS_PER_ACCOUNT, PROHIBITED_TIME_START_HOUR, PROHIBITED_TIME_END_HOUR, MAX_AMOUNT_PER_OPERATION
 from account.types import AccountType
 from datetime import datetime, time
 
@@ -37,18 +39,14 @@ class Session:
         self.created_at:datetime = datetime.now()
         self.session_id:str = str(uuid.uuid4())
 
-MAX_SESSIONS_PER_ACCOUNT = 10
 
-MAX_AMOUNT_PER_OPERATION = 10000
-
-PROHIBITED_TIME_START_HOUR = 0
-PROHIBITED_TIME_END_HOUR = 5
 
 class Bank:
     def __init__(self):
         self.clients:list[Client] = []
         self.accounts:list[AccountType] = []
         self.clients_accounts_map: dict[str, list[str]] = {}
+        self.accounts_clients_map: dict[str, str] = {}
         self.sessions:list[Session] = []
         self.clients_sessions_map: dict[str, list[str]] = {}
         self.sessions_clients_map: dict[str, str] = {}
@@ -63,6 +61,7 @@ class Bank:
         self.transaction_queue = TransactionQueue()
         self.transaction_processor = TransactionProcessor(self, self.transaction_queue)
         self.audit_log = AuditLog()
+        self.risk_analyzer = RiskAnalyzer(self.audit_log)
 
     def add_client(self,client:Client):
         self.clients.append(client)
@@ -71,6 +70,7 @@ class Bank:
         account.add_client_id(client_id)
         self.accounts.append(account)
         self.clients_accounts_map.setdefault(client_id, []).append(account.id)
+        self.accounts_clients_map[account.id] = client_id
         self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.CREATE))
 
     def get_account(self, account_id: str) -> AccountType | None:
@@ -135,6 +135,13 @@ class Bank:
 
     def search_client_by_session_id(self, session_id: str) -> Client | None:
         client_id = self.sessions_clients_map.get(session_id, None)
+        if client_id is None:
+            return None
+
+        return self.search_client_by_id(client_id)
+
+    def search_client_by_account_id(self, account_id:str) -> Client | None:
+        client_id = self.accounts_clients_map[account_id]
         if client_id is None:
             return None
 
@@ -218,6 +225,7 @@ class Bank:
         common_args={
             'transaction_id' : transaction_id,
             'executed_at': datetime.now(),
+            'created_at': datetime.now(),
             'amount': amount,
             'currency': account.currency,
             'status': status,
@@ -226,14 +234,14 @@ class Bank:
         self.audit_log.add_log(TransactionLog(
                 entity = TransactionEntity.CLIENT if is_withdraw else TransactionEntity.EXTERNAL,
                 direction=TransactionDirection.DEBIT,
-                account_id=account.account_id if is_withdraw else None,
+                account_id=account.id if is_withdraw else None,
                 client_id=account.client_id if is_withdraw else None,
                 **common_args
             ))
         self.audit_log.add_log(TransactionLog(
                 entity=TransactionEntity.EXTERNAL if is_withdraw else TransactionEntity.CLIENT,
                 direction=TransactionDirection.CREDIT,
-                account_id=None if is_withdraw else account.account_id,
+                account_id=None if is_withdraw else account.id,
                 client_id=None if is_withdraw else account.client_id,
                 **common_args
             ))

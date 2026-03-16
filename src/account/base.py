@@ -1,4 +1,5 @@
 from abc import ABC
+from datetime import datetime
 from typing import Optional
 
 from .enums import AccountStatus
@@ -22,6 +23,7 @@ class AbstractAccount(ABC):
         self.owner_name:str = owner_name
         self._balance:int = balance
         self.status:AccountStatus = status
+        self.created_at:datetime = datetime.now()
         
     @property
     def balance(self):

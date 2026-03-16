@@ -28,3 +28,8 @@ class AccountActionsEnum(Enum):
 class LoginStatus(Enum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+
+class RiskLevel(Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
