@@ -8,7 +8,7 @@ class AuditLog:
         self.logs: list[LogEntity] = []
 
     def add_log(self, log:LogEntity):
-        if log.type == LogType.TRANSACTION and log.status == TransactionStatus.REJECTED:
+        if log.log_type == LogType.TRANSACTION and log.status == TransactionStatus.REJECTED:
             log.set_log_level(LogLevel.ERROR)
 
         self.logs.append(log)

@@ -25,3 +25,7 @@ class AccountActionsEnum(Enum):
     FREEZE = "FREEZE"
     UNFREEZE = "UNFREEZE"
     CLOSE = "CLOSE"
+
+class LoginStatus(Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"

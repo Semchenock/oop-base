@@ -1,4 +1,5 @@
 from .transaction_log import TransactionLog
 from .account_log import AccountLog
+from .login_log import LoginLog
 
-LogEntity = TransactionLog | AccountLog
+LogEntity = TransactionLog | AccountLog | LoginLog

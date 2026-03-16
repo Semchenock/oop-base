@@ -5,9 +5,10 @@ from account.enums import AccountStatus, AccountCurrency
 from typing import Optional
 
 from audit.audit_log import AuditLog
-from audit.enums import TransactionEntity, TransactionDirection, AccountActionsEnum
+from audit.enums import TransactionEntity, TransactionDirection, AccountActionsEnum, LoginStatus
 from audit.transaction_log import TransactionLog
 from audit.account_log import AccountLog
+from audit.login_log import LoginLog
 from transaction.enums import TransactionStatus
 from .client import Client, InvalidPassword
 from account.types import AccountType
@@ -154,13 +155,18 @@ class Bank:
             self.sessions.append(session)
             self.sessions_clients_map[session.session_id] = session.client_id
 
-            # проверка лимита после добавления
-            if len(session_list) > MAX_SESSIONS_PER_ACCOUNT:
+            sessions_count = len(session_list)
+
+            self.audit_log.add_log(
+                LoginLog(status=LoginStatus.SUCCESS, client_id=client.client_id, session_id=session.session_id, sessions_count=sessions_count))
+
+            if sessions_count > MAX_SESSIONS_PER_ACCOUNT:
                 client.add_fraud(FraudType.TOO_MANY_SESSIONS)
 
             return session.session_id
         except InvalidPassword:
             client.add_fraud(FraudType.LOGIN_FAILED)
+            self.audit_log.add_log(LoginLog(status=LoginStatus.FAILED, client_id=client.client_id, try_count=client.try_count))
             raise
 
 
