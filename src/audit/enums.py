@@ -10,7 +10,6 @@ class LogLevel(Enum):
     INFO = 'INFO'
     WARNING = 'WARNING'
     ERROR = 'ERROR'
-    CRITICAL = 'CRITICAL'
 
 class TransactionEntity(Enum):
     CLIENT = "CLIENT"
