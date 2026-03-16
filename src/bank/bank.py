@@ -5,8 +5,9 @@ from account.enums import AccountStatus, AccountCurrency
 from typing import Optional
 
 from audit.audit_log import AuditLog
-from audit.enums import TransactionEntity, TransactionDirection
+from audit.enums import TransactionEntity, TransactionDirection, AccountActionsEnum
 from audit.transaction_log import TransactionLog
+from audit.account_log import AccountLog
 from transaction.enums import TransactionStatus
 from .client import Client, InvalidPassword
 from account.types import AccountType
@@ -69,6 +70,7 @@ class Bank:
         account.add_client_id(client_id)
         self.accounts.append(account)
         self.clients_accounts_map.setdefault(client_id, []).append(account.id)
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.CREATE))
 
     def get_account(self, account_id: str) -> AccountType | None:
         return next((a for a in self.accounts if a.id == account_id), None)
@@ -83,6 +85,7 @@ class Bank:
             raise AccountCantBeClosed
 
         account.close_account()
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.CLOSE))
 
     def freeze_account(self, account_id:str):
         account = self.get_account(account_id=account_id)
@@ -91,6 +94,7 @@ class Bank:
             raise AccountNotFound
 
         account.freeze_account()
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.FREEZE))
 
     def unfreeze_account(self, account_id:str):
         account = self.get_account(account_id=account_id)
@@ -99,6 +103,7 @@ class Bank:
             raise AccountNotFound
 
         account.unfreeze_account()
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.UNFREEZE))
 
     def search_accounts(self, account_id: Optional[str] = None, client_id: Optional[str] = None) -> list[AccountType]:
         """

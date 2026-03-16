@@ -19,3 +19,9 @@ class TransactionEntity(Enum):
 class TransactionDirection(Enum):
     DEBIT = "DEBIT"
     CREDIT = "CREDIT"
+
+class AccountActionsEnum(Enum):
+    CREATE = "CREATE"
+    FREEZE = "FREEZE"
+    UNFREEZE = "UNFREEZE"
+    CLOSE = "CLOSE"
