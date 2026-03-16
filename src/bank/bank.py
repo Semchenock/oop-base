@@ -3,7 +3,12 @@ import uuid
 from account.enums import AccountStatus, AccountCurrency
 
 from typing import Optional
-from .client import Client, InvalidPassword, FraudType
+
+from audit.audit_log import AuditLog
+from audit.enums import TransactionEntity, TransactionDirection
+from audit.transaction_log import TransactionLog
+from transaction.enums import TransactionStatus
+from .client import Client, InvalidPassword
 from account.types import AccountType
 from datetime import datetime, time
 
@@ -55,11 +60,13 @@ class Bank:
         }
         self.transaction_queue = TransactionQueue()
         self.transaction_processor = TransactionProcessor(self, self.transaction_queue)
+        self.audit_log = AuditLog()
 
     def add_client(self,client:Client):
         self.clients.append(client)
 
     def open_account(self, client_id:str, account:AccountType):
+        account.add_client_id(client_id)
         self.accounts.append(account)
         self.clients_accounts_map.setdefault(client_id, []).append(account.id)
 
@@ -194,6 +201,33 @@ class Bank:
 
         return  next((acc for acc in self.accounts if acc.id == account_id), None)
 
+    def _create_transaction_log(self, is_withdraw: bool, account, status, amount):
+        transaction_id=str(uuid.uuid4())
+
+        common_args={
+            'transaction_id' : transaction_id,
+            'executed_at': datetime.now(),
+            'amount': amount,
+            'currency': account.currency,
+            'status': status,
+        }
+
+        self.audit_log.add_log(TransactionLog(
+                entity = TransactionEntity.CLIENT if is_withdraw else TransactionEntity.EXTERNAL,
+                direction=TransactionDirection.DEBIT,
+                account_id=account.account_id if is_withdraw else None,
+                client_id=account.client_id if is_withdraw else None,
+                **common_args
+            ))
+        self.audit_log.add_log(TransactionLog(
+                entity=TransactionEntity.EXTERNAL if is_withdraw else TransactionEntity.CLIENT,
+                direction=TransactionDirection.CREDIT,
+                account_id=None if is_withdraw else account.account_id,
+                client_id=None if is_withdraw else account.client_id,
+                **common_args
+            ))
+
+
     def withdraw(self, session_id: str, account_id: str, amount: int):
         client = self._get_client_from_session(session_id)
         self._check_fraud(client, amount)
@@ -202,7 +236,18 @@ class Bank:
         if client_account is None:
             raise AccountNotFound
 
-        client_account.withdraw(amount)
+        log_args = {
+            'is_withdraw': True,
+            'account': client_account,
+            'amount': amount
+        }
+
+        try:
+            client_account.withdraw(amount)
+            self._create_transaction_log(status = TransactionStatus.EXECUTED, **log_args)
+        except Exception as e:
+            self._create_transaction_log(status=TransactionStatus.REJECTED, **log_args)
+            raise e
 
     def deposit(self, session_id: str, account_id: str, amount: int):
         client = self._get_client_from_session(session_id)
@@ -212,7 +257,18 @@ class Bank:
         if client_account is None:
             raise AccountNotFound
 
-        client_account.deposit(amount)
+        log_args = {
+            'is_withdraw': False,
+            'account': client_account,
+            'amount': amount
+        }
+
+        try:
+            client_account.deposit(amount)
+            self._create_transaction_log(status = TransactionStatus.EXECUTED, **log_args)
+        except Exception as e:
+            self._create_transaction_log(status=TransactionStatus.REJECTED, **log_args)
+            raise e
 
     def convert_currency(self,amount: int, from_currency: AccountCurrency, to_currency: AccountCurrency) -> int:
         amount_in_main_currency = amount / self.main_currency_course[from_currency]
