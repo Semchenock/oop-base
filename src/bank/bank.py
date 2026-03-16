@@ -3,7 +3,16 @@ import uuid
 from account.enums import AccountStatus, AccountCurrency
 
 from typing import Optional
-from .client import Client, InvalidPassword, FraudType
+
+from audit.audit_log import AuditLog
+from audit.enums import TransactionEntity, TransactionDirection, AccountActionsEnum, LoginStatus
+from audit.risk_analyzer import RiskAnalyzer
+from audit.transaction_log import TransactionLog
+from audit.account_log import AccountLog
+from audit.login_log import LoginLog
+from transaction.enums import TransactionStatus
+from .client import Client, InvalidPassword
+from .constants import MAX_SESSIONS_PER_ACCOUNT, PROHIBITED_TIME_START_HOUR, PROHIBITED_TIME_END_HOUR, MAX_AMOUNT_PER_OPERATION
 from account.types import AccountType
 from datetime import datetime, time
 
@@ -30,18 +39,14 @@ class Session:
         self.created_at:datetime = datetime.now()
         self.session_id:str = str(uuid.uuid4())
 
-MAX_SESSIONS_PER_ACCOUNT = 10
 
-MAX_AMOUNT_PER_OPERATION = 10000
-
-PROHIBITED_TIME_START_HOUR = 0
-PROHIBITED_TIME_END_HOUR = 5
 
 class Bank:
     def __init__(self):
         self.clients:list[Client] = []
         self.accounts:list[AccountType] = []
         self.clients_accounts_map: dict[str, list[str]] = {}
+        self.accounts_clients_map: dict[str, str] = {}
         self.sessions:list[Session] = []
         self.clients_sessions_map: dict[str, list[str]] = {}
         self.sessions_clients_map: dict[str, str] = {}
@@ -55,13 +60,18 @@ class Bank:
         }
         self.transaction_queue = TransactionQueue()
         self.transaction_processor = TransactionProcessor(self, self.transaction_queue)
+        self.audit_log = AuditLog()
+        self.risk_analyzer = RiskAnalyzer(self.audit_log)
 
     def add_client(self,client:Client):
         self.clients.append(client)
 
     def open_account(self, client_id:str, account:AccountType):
+        account.add_client_id(client_id)
         self.accounts.append(account)
         self.clients_accounts_map.setdefault(client_id, []).append(account.id)
+        self.accounts_clients_map[account.id] = client_id
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.CREATE))
 
     def get_account(self, account_id: str) -> AccountType | None:
         return next((a for a in self.accounts if a.id == account_id), None)
@@ -76,6 +86,7 @@ class Bank:
             raise AccountCantBeClosed
 
         account.close_account()
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.CLOSE))
 
     def freeze_account(self, account_id:str):
         account = self.get_account(account_id=account_id)
@@ -84,6 +95,7 @@ class Bank:
             raise AccountNotFound
 
         account.freeze_account()
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.FREEZE))
 
     def unfreeze_account(self, account_id:str):
         account = self.get_account(account_id=account_id)
@@ -92,6 +104,7 @@ class Bank:
             raise AccountNotFound
 
         account.unfreeze_account()
+        self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.UNFREEZE))
 
     def search_accounts(self, account_id: Optional[str] = None, client_id: Optional[str] = None) -> list[AccountType]:
         """
@@ -127,6 +140,13 @@ class Bank:
 
         return self.search_client_by_id(client_id)
 
+    def search_client_by_account_id(self, account_id:str) -> Client | None:
+        client_id = self.accounts_clients_map[account_id]
+        if client_id is None:
+            return None
+
+        return self.search_client_by_id(client_id)
+
     def authenticate_client(self, client_login: str, client_password: str) -> str:
         client = self.search_client_by_login(client_login)
 
@@ -142,13 +162,18 @@ class Bank:
             self.sessions.append(session)
             self.sessions_clients_map[session.session_id] = session.client_id
 
-            # проверка лимита после добавления
-            if len(session_list) > MAX_SESSIONS_PER_ACCOUNT:
+            sessions_count = len(session_list)
+
+            self.audit_log.add_log(
+                LoginLog(status=LoginStatus.SUCCESS, client_id=client.client_id, session_id=session.session_id, sessions_count=sessions_count))
+
+            if sessions_count > MAX_SESSIONS_PER_ACCOUNT:
                 client.add_fraud(FraudType.TOO_MANY_SESSIONS)
 
             return session.session_id
         except InvalidPassword:
             client.add_fraud(FraudType.LOGIN_FAILED)
+            self.audit_log.add_log(LoginLog(status=LoginStatus.FAILED, client_id=client.client_id, try_count=client.try_count))
             raise
 
 
@@ -194,6 +219,34 @@ class Bank:
 
         return  next((acc for acc in self.accounts if acc.id == account_id), None)
 
+    def _create_transaction_log(self, is_withdraw: bool, account, status, amount):
+        transaction_id=str(uuid.uuid4())
+
+        common_args={
+            'transaction_id' : transaction_id,
+            'executed_at': datetime.now(),
+            'created_at': datetime.now(),
+            'amount': amount,
+            'currency': account.currency,
+            'status': status,
+        }
+
+        self.audit_log.add_log(TransactionLog(
+                entity = TransactionEntity.CLIENT if is_withdraw else TransactionEntity.EXTERNAL,
+                direction=TransactionDirection.DEBIT,
+                account_id=account.id if is_withdraw else None,
+                client_id=account.client_id if is_withdraw else None,
+                **common_args
+            ))
+        self.audit_log.add_log(TransactionLog(
+                entity=TransactionEntity.EXTERNAL if is_withdraw else TransactionEntity.CLIENT,
+                direction=TransactionDirection.CREDIT,
+                account_id=None if is_withdraw else account.id,
+                client_id=None if is_withdraw else account.client_id,
+                **common_args
+            ))
+
+
     def withdraw(self, session_id: str, account_id: str, amount: int):
         client = self._get_client_from_session(session_id)
         self._check_fraud(client, amount)
@@ -202,7 +255,18 @@ class Bank:
         if client_account is None:
             raise AccountNotFound
 
-        client_account.withdraw(amount)
+        log_args = {
+            'is_withdraw': True,
+            'account': client_account,
+            'amount': amount
+        }
+
+        try:
+            client_account.withdraw(amount)
+            self._create_transaction_log(status = TransactionStatus.EXECUTED, **log_args)
+        except Exception as e:
+            self._create_transaction_log(status=TransactionStatus.REJECTED, **log_args)
+            raise e
 
     def deposit(self, session_id: str, account_id: str, amount: int):
         client = self._get_client_from_session(session_id)
@@ -212,7 +276,18 @@ class Bank:
         if client_account is None:
             raise AccountNotFound
 
-        client_account.deposit(amount)
+        log_args = {
+            'is_withdraw': False,
+            'account': client_account,
+            'amount': amount
+        }
+
+        try:
+            client_account.deposit(amount)
+            self._create_transaction_log(status = TransactionStatus.EXECUTED, **log_args)
+        except Exception as e:
+            self._create_transaction_log(status=TransactionStatus.REJECTED, **log_args)
+            raise e
 
     def convert_currency(self,amount: int, from_currency: AccountCurrency, to_currency: AccountCurrency) -> int:
         amount_in_main_currency = amount / self.main_currency_course[from_currency]

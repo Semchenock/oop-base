@@ -1,4 +1,7 @@
 from abc import ABC
+from datetime import datetime
+from typing import Optional
+
 from .enums import AccountStatus
 
 class AccountFrozenError(Exception):
@@ -14,11 +17,13 @@ class InsufficientFundsError(Exception):
     pass
 
 class AbstractAccount(ABC):
-    def __init__(self, owner_name: str, id: str, balance=0, status=AccountStatus.ACTIVE):
+    def __init__(self, owner_name: str, id: str, client_id: Optional[str] = None,  balance=0, status=AccountStatus.ACTIVE):
         self.id:str = id
+        self.client_id:Optional[str] = client_id
         self.owner_name:str = owner_name
         self._balance:int = balance
         self.status:AccountStatus = status
+        self.created_at:datetime = datetime.now()
         
     @property
     def balance(self):
@@ -78,3 +83,6 @@ class AbstractAccount(ABC):
 
     def unfreeze_account(self):
         self.status = AccountStatus.ACTIVE
+
+    def add_client_id(self, client_id:str):
+        self.client_id = client_id
