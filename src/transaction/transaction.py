@@ -52,9 +52,13 @@ class Transaction:
             risk=risk
         )
 
-    def execute(self, bank:Bank):
+    def execute(self, bank: Bank):
         deposit_amount = round(self.amount * (100 - self.commission) / 100)
-        converted_deposit_amount = bank.convert_currency(deposit_amount, self.from_account.currency, self.to_account.currency)
+        converted_deposit_amount = bank.convert_currency(
+            deposit_amount,
+            self.from_account.currency,
+            self.to_account.currency
+        )
 
         client = bank.search_client_by_account_id(self.from_account.id)
 
@@ -87,27 +91,57 @@ class Transaction:
         try:
             self.from_account.withdraw(self.amount)
 
-            log = self._create_log(status = TransactionStatus.EXECUTED, **withdraw_log_args)
+            log = self._create_log(status=TransactionStatus.EXECUTED, **withdraw_log_args)
             bank.audit_log.add_log(log)
+
         except Exception as e:
             self.reject_reason = e
             self.status = TransactionStatus.REJECTED
+
             log = self._create_log(status=TransactionStatus.REJECTED, **withdraw_log_args)
             bank.audit_log.add_log(log)
+
             return
 
         try:
             self.to_account.deposit(converted_deposit_amount)
-            log = self._create_log(status = TransactionStatus.EXECUTED, **deposit_log_args)
+
+            log = self._create_log(status=TransactionStatus.EXECUTED, **deposit_log_args)
             bank.audit_log.add_log(log)
+
         except Exception as e:
             self.reject_reason = e
             self.status = TransactionStatus.REJECTED
+
             log = self._create_log(status=TransactionStatus.REJECTED, **deposit_log_args)
             bank.audit_log.add_log(log)
+
+            try:
+                self.from_account.deposit(self.amount)
+
+                rollback_log = self._create_log(
+                    status=TransactionStatus.EXECUTED,
+                    amount=self.amount,
+                    direction=TransactionDirection.CREDIT,
+                    account=self.from_account,
+                    risk=RiskLevel.HIGH,
+                    created_at=self.timestamp,
+                )
+                bank.audit_log.add_log(rollback_log)
+
+            except Exception as rollback_error:
+                critical_log = self._create_log(
+                    status=TransactionStatus.REJECTED,
+                    amount=self.amount,
+                    direction=TransactionDirection.CREDIT,
+                    account=self.from_account,
+                    risk=RiskLevel.CRITICAL,
+                    created_at=self.timestamp,
+                )
+                bank.audit_log.add_log(critical_log)
+
             return
 
         self.status = TransactionStatus.EXECUTED
-
 
 

@@ -67,6 +67,11 @@ class Bank:
         self.clients.append(client)
 
     def open_account(self, client_id:str, account:AccountType):
+        client = self.search_client_by_id(client_id)
+
+        if client is None:
+            raise ClientNotFound
+
         account.add_client_id(client_id)
         self.accounts.append(account)
         self.clients_accounts_map.setdefault(client_id, []).append(account.id)
@@ -141,7 +146,7 @@ class Bank:
         return self.search_client_by_id(client_id)
 
     def search_client_by_account_id(self, account_id:str) -> Client | None:
-        client_id = self.accounts_clients_map[account_id]
+        client_id = self.accounts_clients_map.get(account_id, None)
         if client_id is None:
             return None
 
@@ -184,7 +189,7 @@ class Bank:
         return sum([acc.balance for acc in not_closed_accounts])
 
     def get_clients_ranking(self):
-        sorted_clients = sorted(self.clients, key=lambda c: self.get_total_balance(c.client_id))
+        sorted_clients = sorted(self.clients, key=lambda c: self.get_total_balance(c.client_id), reverse=True)
         return sorted_clients
 
     def _is_operations_allowed(self):
