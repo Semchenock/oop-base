@@ -28,8 +28,20 @@ class Transaction:
         self.transaction_id:str = str(uuid.uuid4())
         self.execute_time:Optional[datetime] = execute_time
 
-    def cancel(self):
+    def cancel(self, reason: str = None, bank=None):
         self.status = TransactionStatus.CANCELED
+
+        if bank is not None:
+            log = self._create_log(
+                status=TransactionStatus.CANCELED,
+                amount=self.amount,
+                direction=TransactionDirection.DEBIT,
+                account=self.from_account,
+                risk=RiskLevel.HIGH,
+                created_at=self.timestamp,
+            )
+
+            bank.audit_log.add_log(log)
 
     def can_execute(self) -> bool:
         is_executable_status:bool = self.status == TransactionStatus.CREATED
@@ -69,7 +81,7 @@ class Transaction:
         risk = bank.risk_analyzer.analyze_transaction(transaction=self, client=client)
 
         if risk == RiskLevel.HIGH:
-            self.cancel()
+            self.cancel(reason='High risk', bank=bank)
             return
 
         withdraw_log_args = {
