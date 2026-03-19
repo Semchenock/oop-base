@@ -30,16 +30,18 @@ class AuditLog:
                 or getattr(log, "risk", None) == RiskLevel.MEDIUM
                 or log.log_level != LogLevel.INFO]
 
-    def get_client_risk_profile(self, client_id: str):
+    def get_client_risk_profile(self, client_id: str) -> dict[RiskLevel, int]:
         client_transactions = self.get_client_transactions(client_id)
 
         result = defaultdict(int)
 
         for log in client_transactions:
-            if getattr(log, "risk", None):
+            if getattr(log, "risk", None) is None:
                 continue
 
             result[log.risk] +=1
+
+        return result
 
     def get_errors(self) -> list[LogEntity]:
         return [log for log in self.logs if log.log_level == LogLevel.ERROR]
