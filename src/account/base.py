@@ -21,9 +21,11 @@ class AbstractAccount(ABC):
         self.id:str = id
         self.client_id:Optional[str] = client_id
         self.owner_name:str = owner_name
-        self._balance:int = balance
+        self._balance:int = 0
         self.status:AccountStatus = status
         self.created_at:datetime = datetime.now()
+        if balance > 0:
+            self.deposit(balance)
         
     @property
     def balance(self):

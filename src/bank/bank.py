@@ -6,6 +6,7 @@ from typing import Optional
 
 from audit.audit_log import AuditLog
 from audit.enums import TransactionEntity, TransactionDirection, AccountActionsEnum, LoginStatus
+from audit.report_builder import ReportBuilder
 from audit.risk_analyzer import RiskAnalyzer
 from audit.transaction_log import TransactionLog
 from audit.account_log import AccountLog
@@ -62,6 +63,7 @@ class Bank:
         self.transaction_processor = TransactionProcessor(self, self.transaction_queue)
         self.audit_log = AuditLog()
         self.risk_analyzer = RiskAnalyzer(self.audit_log)
+        self.report_builder = ReportBuilder(self)
 
     def add_client(self,client:Client):
         self.clients.append(client)

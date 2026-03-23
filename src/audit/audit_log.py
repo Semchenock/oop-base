@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 from collections import defaultdict
-from typing import Optional
 
+from .account_log import AccountLog
 from .enums import RiskLevel, LogLevel, LogType
+from .login_log import LoginLog
 from .types import LogEntity
-from .constants import LOG_LEVEL_ORDER
+from .transaction_log import TransactionLog
 
 class AuditLog:
     def __init__(self):
@@ -19,12 +20,12 @@ class AuditLog:
         last_hour_transactions = [log for log in client_transactions if  (current_time - log.created_at) <= timedelta(hours=1)]
         return len(last_hour_transactions)
 
-    def get_client_transactions(self, client_id: str) -> list[LogEntity]:
+    def get_client_transactions(self, client_id: str) -> list[TransactionLog]:
         return  [log for log in self.logs
                 if log.log_type == LogType.TRANSACTION
                 and log.client_id == client_id]
 
-    def get_suspicious_transactions(self) -> list[LogEntity]:
+    def get_suspicious_transactions(self) -> list[TransactionLog]:
         return [log for log in self.logs
                 if  getattr(log, "risk", None) == RiskLevel.HIGH
                 or getattr(log, "risk", None) == RiskLevel.MEDIUM
@@ -45,3 +46,15 @@ class AuditLog:
 
     def get_errors(self) -> list[LogEntity]:
         return [log for log in self.logs if log.log_level == LogLevel.ERROR]
+
+    def get_all_transaction_logs(self) -> list[TransactionLog]:
+        return [log for log in self.logs
+                if log.log_type == LogType.TRANSACTION]
+
+    def get_all_login_logs(self) -> list[LoginLog]:
+        return [log for log in self.logs
+                if log.log_type == LogType.LOGIN]
+
+    def get_all_account_logs(self) -> list[AccountLog]:
+        return [log for log in self.logs
+                if log.log_type == LogType.ACCOUNT]

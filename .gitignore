@@ -28,3 +28,6 @@ ENV/
 # Logs and temp files
 *.log
 *.tmp
+/notebooks/*.csv
+/notebooks/*.json
+/notebooks/*.png
