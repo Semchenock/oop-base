@@ -59,11 +59,14 @@ class AbstractAccount(ABC):
 
         return self.balance
 
-    def withdraw(self, amount:int):
+    def _run_withdraw_checks(self, amount:int):
         self._check_account_status()
         self._check_operation_amount_type(amount)
         self._check_operation_amount(amount)
         self._check_withdraw_allowed(amount)
+
+    def withdraw(self, amount:int):
+        self._run_withdraw_checks(amount)
             
         self._balance -= amount
 

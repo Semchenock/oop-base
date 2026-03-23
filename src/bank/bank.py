@@ -183,7 +183,14 @@ class Bank:
             self.audit_log.add_log(LoginLog(status=LoginStatus.FAILED, client_id=client.client_id, try_count=client.try_count))
             raise
 
+    def logout_client(self, client_id: str):
+        session_list = self.clients_sessions_map.get(client_id, None)
+        if session_list is None:
+            return
 
+        ids_set = set(session_list)
+
+        self.sessions[:] = [s for s in self.sessions if s.session_id not in ids_set]
 
     def get_total_balance(self, client_id: str) -> int:
         accounts = self.search_accounts(client_id=client_id)

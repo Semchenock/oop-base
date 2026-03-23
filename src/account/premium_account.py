@@ -12,7 +12,8 @@ class PremiumAccount(BankAccount):
         if amount > self.balance + self.overdraft_limit:
             raise InsufficientFundsError()
 
-    def withdraw(self, amount):
+    def withdraw(self, amount:int):
+        super()._run_withdraw_checks(amount)
         return super().withdraw(amount + self.fee)
 
     def get_account_info(self):
