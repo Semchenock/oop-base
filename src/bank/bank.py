@@ -191,6 +191,11 @@ class Bank:
         ids_set = set(session_list)
 
         self.sessions[:] = [s for s in self.sessions if s.session_id not in ids_set]
+        del self.clients_sessions_map[client_id]
+        
+        for session_id in session_list:
+            del self.sessions_clients_map[session_id]
+
 
     def get_total_balance(self, client_id: str) -> int:
         accounts = self.search_accounts(client_id=client_id)
