@@ -32,6 +32,12 @@ class TransactionLog(BaseLog):
         elif self.amount > MAX_AMOUNT_PER_OPERATION:
             self.set_log_level(LogLevel.WARNING)
 
+    def get_signed_amount(self) -> int:
+        if self.direction == TransactionDirection.DEBIT:
+            return -self.amount
+        else:
+            return self.amount
+
     def __str__(self):
         parts = [
             f"[{self.created_at.strftime('%Y-%m-%d %H:%M:%S')}] TransactionLog",

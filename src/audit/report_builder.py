@@ -48,8 +48,8 @@ class ReportBuilder:
                     "login": c_data.get("login", None),
                     "try_count": c_data.get("try_count", None),
                     f"risk_level_{RiskLevel.LOW.value}": c_data.get(f"risk_level_{RiskLevel.LOW.value}", 0),
-                    f"risk_level_{RiskLevel.MEDIUM.value}": c_data.get(f"risk_level_{RiskLevel.LOW.value}", 0),
-                    f"risk_level_{RiskLevel.HIGH.value}": c_data.get(f"risk_level_{RiskLevel.LOW.value}", 0),
+                    f"risk_level_{RiskLevel.MEDIUM.value}": c_data.get(f"risk_level_{RiskLevel.MEDIUM.value}", 0),
+                    f"risk_level_{RiskLevel.HIGH.value}": c_data.get(f"risk_level_{RiskLevel.HIGH.value}", 0),
                 }
                 for c_data in data
             ]
@@ -118,7 +118,7 @@ class ReportBuilder:
         for t in valid_transactions:
             prev_point = points[-1]
             prev_amount = 0 if prev_point is None else prev_point.get("amount", 0)
-            new_amount = prev_amount + (t.amount * (1 if t.direction == TransactionDirection.DEBIT else -1))
+            new_amount = prev_amount + (t.get_signed_amount())
             points.append({"date": t.executed_at, "amount": new_amount})
 
         df = pd.DataFrame(
@@ -148,9 +148,9 @@ class ReportBuilder:
 
     def build_client_income_expenses_report(self, client_id, export_path=None):
         valid_transactions = self._get_valid_client_transactions(client_id)
-
-        income = sum([t.amount for t in valid_transactions if t.direction == TransactionDirection.DEBIT])
-        expenses = sum([t.amount for t in valid_transactions if t.direction == TransactionDirection.CREDIT])
+        signed_amount = [t.get_signed_amount() for t in valid_transactions]
+        income = sum(amount for amount in signed_amount if amount > 0)
+        expenses = -sum(amount for amount in signed_amount if amount < 0)
 
         plt.figure()
         plt.bar(["Income", "Expenses"], [income, expenses])
