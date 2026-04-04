@@ -1,4 +1,0 @@
-account
-audit
-bank
-transaction
