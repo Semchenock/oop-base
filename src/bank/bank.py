@@ -191,11 +191,16 @@ class Bank:
         ids_set = set(session_list)
 
         self.sessions[:] = [s for s in self.sessions if s.session_id not in ids_set]
+        del self.clients_sessions_map[client_id]
+
+        for session_id in session_list:
+            del self.sessions_clients_map[session_id]
+
 
     def get_total_balance(self, client_id: str) -> int:
         accounts = self.search_accounts(client_id=client_id)
         not_closed_accounts = [acc for acc in accounts if acc.status != AccountStatus.CLOSED]
-        return sum([acc.balance for acc in not_closed_accounts])
+        return sum([self.convert_currency(acc.balance, acc.currency, self.main_currency) for acc in not_closed_accounts])
 
     def get_clients_ranking(self):
         sorted_clients = sorted(self.clients, key=lambda c: self.get_total_balance(c.client_id), reverse=True)
@@ -226,8 +231,10 @@ class Bank:
             client.add_fraud(FraudType.BIG_TRANSACTION)
 
     def _get_account_for_operation(self, client: Client, account_id: str, amount) -> AccountType | None:
+        print(self.clients_accounts_map, client.client_id)
         client_account_ids = self.clients_accounts_map.get(client.client_id, [])
 
+        print(account_id, client_account_ids)
         if account_id not in client_account_ids:
             raise AccountNotFound
 
@@ -285,6 +292,7 @@ class Bank:
     def deposit(self, session_id: str, account_id: str, amount: int):
         client = self._get_client_from_session(session_id)
         self._check_fraud(client, amount)
+        print(client, account_id, amount)
         client_account = self._get_account_for_operation(client, account_id, amount)
 
         if client_account is None:
