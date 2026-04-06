@@ -175,7 +175,6 @@ from account.savings_account import SavingsAccount
 account = SavingsAccount(
     owner_name="Alice",
     id="SAV-1",
-    balance=1000,
     min_balance=200,
     monthly_interest=2
 )

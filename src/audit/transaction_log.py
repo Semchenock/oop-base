@@ -32,6 +32,22 @@ class TransactionLog(BaseLog):
         elif self.amount > MAX_AMOUNT_PER_OPERATION:
             self.set_log_level(LogLevel.WARNING)
 
+    def to_dict(self) -> dict:
+        return {
+            **super().to_dict(),
+            "entity": self.entity.value,
+            "account_id": self.account_id,
+            "client_id": self.client_id,
+            "transaction_id": self.transaction_id,
+            "created_at": self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            "executed_at": self.executed_at.strftime('%Y-%m-%d %H:%M:%S'),
+            "amount": self.amount,
+            "direction": self.direction.value,
+            "status": self.status.value,
+            "currency": self.currency.value,
+            "risk": self.risk.value,
+        }
+
     def get_signed_amount(self) -> int:
         if self.direction == TransactionDirection.DEBIT:
             return -self.amount

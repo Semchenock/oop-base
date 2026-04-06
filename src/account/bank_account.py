@@ -13,6 +13,12 @@ class BankAccount(AbstractAccount):
     def get_account_info(self):
         return {**super().get_account_info(), **{'currency' : self.currency.value}}
 
+    def withdraw(self, amount: int):
+        super().withdraw(amount)
+
+    def deposit(self, amount: int):
+        super().deposit(amount)
+
     def __str__(self):
          return (
             f"{self.__class__.__name__} | "

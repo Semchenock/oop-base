@@ -7,10 +7,12 @@ class SavingsAccount(BankAccount):
         self.min_balance=min_balance
         self.monthly_interest=monthly_interest
 
-    def withdraw(self, amount):
+    def _check_withdraw_allowed(self, amount):
         if amount > self.balance - self.min_balance:
             raise InsufficientFundsError()
 
+    def withdraw(self, amount):
+        super()._run_withdraw_checks(amount)
         return super().withdraw(amount)
     
     def apply_monthly_interest(self):

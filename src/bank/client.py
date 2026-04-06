@@ -41,11 +41,15 @@ class Client:
         self.password_hash = self._hash_password(password, self.salt)
         self.try_count:int = 0
         self.frauds:list[Fraud] = []
+        self.account_ids:list[str] = []
 
     def _hash_password(self, password: str, salt: bytes) -> str:
         password_bytes = password.encode()
         hash_object = hashlib.sha256(salt + password_bytes)
         return hash_object.hexdigest()
+
+    def add_account_id(self, account_id:str):
+        self.account_ids.append(account_id)
 
     def close_account(self):
         self.status = ClientAccountStatus.CLOSED
