@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -27,9 +28,10 @@ class AuditLog:
 
     def get_suspicious_transactions(self) -> list[TransactionLog]:
         return [log for log in self.logs
-                if  getattr(log, "risk", None) == RiskLevel.HIGH
+                if getattr(log, "log_type", None) == LogType.TRANSACTION
+                and (getattr(log, "risk", None) == RiskLevel.HIGH
                 or getattr(log, "risk", None) == RiskLevel.MEDIUM
-                or log.log_level != LogLevel.INFO]
+                or log.log_level != LogLevel.INFO)]
 
     def get_client_risk_profile(self, client_id: str) -> dict[RiskLevel, int]:
         client_transactions = self.get_client_transactions(client_id)
@@ -58,3 +60,7 @@ class AuditLog:
     def get_all_account_logs(self) -> list[AccountLog]:
         return [log for log in self.logs
                 if log.log_type == LogType.ACCOUNT]
+
+    def save_logs_to_json_file(self, path: str) -> None:
+        with open(path, "w") as f:
+            json.dump([log.to_dict() for log in self.logs], f, indent=4)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from matplotlib.figure import Figure
+
 from .enums import RiskLevel, TransactionDirection
 from transaction.enums import TransactionStatus
 import pandas as pd
@@ -17,7 +19,7 @@ class ReportBuilder:
     def __init__(self, bank: Bank):
         self.bank = bank
 
-    def build_clients_report(self):
+    def build_clients_report(self) -> pd.DataFrame:
         data = [
                 {
                     "client_id": c.client_id,
@@ -35,7 +37,7 @@ class ReportBuilder:
             if client_id is not None:
                 risk = self.bank.audit_log.get_client_risk_profile(client_id)
                 for r_key in risk.keys():
-                    table_key = f"risk_level_{r_key}"
+                    table_key = f"risk_level_{r_key.value}"
                     c_data[table_key] = risk[r_key]
 
         return pd.DataFrame(
@@ -55,7 +57,7 @@ class ReportBuilder:
             ]
         )
 
-    def build_transactions_report(self):
+    def build_transactions_report(self) -> pd.DataFrame:
         data = self.bank.audit_log.get_all_transaction_logs()
 
         return pd.DataFrame(
@@ -76,7 +78,7 @@ class ReportBuilder:
             ]
         )
 
-    def build_accounts_report(self):
+    def build_accounts_report(self) -> pd.DataFrame:
 
         return pd.DataFrame(
             [
@@ -107,7 +109,7 @@ class ReportBuilder:
 
         return valid_transactions
 
-    def build_client_transactions_report(self, client_id, export_path=None):
+    def plot_client_transactions_report(self, client_id) -> Figure:
         valid_transactions = self._get_valid_client_transactions(client_id)
 
         points: list[dict] = [{
@@ -131,37 +133,30 @@ class ReportBuilder:
             ]
         )
 
-        plt.figure()
-        plt.plot(df["date"], df["amount"])
+        fig, ax = plt.subplots()
 
-        plt.xlabel("Date")
-        plt.ylabel("Amount")
-        plt.title("Client Balance Over Time")
+        ax.plot(df["date"], df["amount"])
 
-        plt.xticks(rotation=45)
-        plt.tight_layout()
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Amount")
+        ax.set_title("Client Balance Over Time")
 
-        if export_path is not None:
-            plt.savefig(export_path)
+        return fig
 
-        plt.show()
-
-    def build_client_income_expenses_report(self, client_id, export_path=None):
+    def plot_client_income_expenses_report(self, client_id) -> Figure:
         valid_transactions = self._get_valid_client_transactions(client_id)
         signed_amount = [t.get_signed_amount() for t in valid_transactions]
         income = sum(amount for amount in signed_amount if amount > 0)
         expenses = -sum(amount for amount in signed_amount if amount < 0)
 
-        plt.figure()
-        plt.bar(["Income", "Expenses"], [income, expenses])
-        plt.title("Income vs Expenses")
+        fig, ax = plt.subplots()
 
-        if export_path is not None:
-            plt.savefig(export_path)
+        ax.bar(["Income", "Expenses"], [income, expenses])
+        ax.set_title("Income vs Expenses")
 
-        plt.show()
+        return fig
 
-    def build_client_accounts_balance_report(self, client_id, export_path=None):
+    def plot_client_accounts_balance_report(self, client_id) -> Figure:
         client_accounts = self.bank.search_accounts(client_id=client_id)
 
         data = list(map(lambda acc: {
@@ -173,22 +168,41 @@ class ReportBuilder:
 
         df = df[df["balance"] > 0]
 
-        plt.figure()
-        plt.pie(
+        fig, ax = plt.subplots()
+        ax.pie(
             df["balance"],
             labels=df["account_id"],
             autopct="%1.1f%%"
         )
-        plt.title("Accounts Balance Distribution")
+        ax.set_title("Accounts Balance Distribution")
 
-        if export_path is not None:
-            plt.savefig(export_path)
+        return fig
 
-        plt.show()
+    def save_charts(self, client_id, path: str) -> None:
+        charts = {
+            "balance": self.plot_client_transactions_report(client_id),
+            "income_expenses": self.plot_client_income_expenses_report(client_id),
+            "accounts_distribution": self.plot_client_accounts_balance_report(client_id),
+        }
+
+        for name, fig in charts.items():
+            fig.savefig(f"{path}_{name}.png")
+            plt.close(fig)
 
     def export_to_json(self, df: pd.DataFrame, path: str):
-        df.to_json(path, index=False)
+        df.to_json(f"{path}.json", index=False)
 
     def export_to_csv(self, df: pd.DataFrame, path: str):
-        df.to_csv(path, index=False)
+        df.to_csv(f"{path}.csv", index=False)
+
+    def export_to_txt(self, df: pd.DataFrame, title:str, path: str):
+        lines = [
+            f"=== {title} ===",
+            "",
+            df.to_string(index=False)
+        ]
+
+        with open(f"{path}.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
 

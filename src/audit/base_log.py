@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from .enums import LogLevel, LogType
 from .constants import LOG_LEVEL_ORDER
@@ -14,3 +14,10 @@ class BaseLog(ABC):
 
         if new_log_level_index > current_level_index:
             self.log_level = log_level
+
+    @abstractmethod
+    def to_dict(self) -> dict:
+        return {
+            "log_level": self.log_level.value,
+            "log_type": self.log_type.value
+        }

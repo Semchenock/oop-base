@@ -23,6 +23,17 @@ class LoginLog(BaseLog):
         elif self.status == LoginStatus.FAILED:
             self.set_log_level(LogLevel.WARNING)
 
+    def to_dict(self) -> dict:
+        return {
+            **super().to_dict(),
+            "client_id": self.client_id,
+            "status": self.status.value,
+            "try_count": self.try_count,
+            "session_id": self.session_id,
+            "sessions_count": self.sessions_count,
+            "created_at": self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        }
+
     def __str__(self):
         session_info = f" | Session: {self.session_id}" if self.session_id else ""
         sessions_count_info = f" | Active Sessions: {self.sessions_count}" if self.sessions_count is not None else ""

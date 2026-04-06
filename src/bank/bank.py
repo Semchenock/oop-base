@@ -34,6 +34,9 @@ class AccountCantBeClosed(Exception):
 class ProhibitedOperationTime(Exception):
     pass
 
+class ClientIsNotAdult(Exception):
+    pass
+
 class Session:
     def __init__(self, client_id: str):
         self.client_id:str = client_id
@@ -66,6 +69,9 @@ class Bank:
         self.report_builder = ReportBuilder(self)
 
     def add_client(self,client:Client):
+        if not client.is_adult():
+            raise ClientIsNotAdult
+
         self.clients.append(client)
 
     def open_account(self, client_id:str, account:AccountType):
@@ -79,6 +85,7 @@ class Bank:
         self.clients_accounts_map.setdefault(client_id, []).append(account.id)
         self.accounts_clients_map[account.id] = client_id
         self.audit_log.add_log(AccountLog(account_id=account.id, action=AccountActionsEnum.CREATE))
+        client.add_account_id(account.id)
 
     def get_account(self, account_id: str) -> AccountType | None:
         return next((a for a in self.accounts if a.id == account_id), None)

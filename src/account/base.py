@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional
 
@@ -28,7 +28,7 @@ class AbstractAccount(ABC):
     @property
     def balance(self):
         return self._balance
-    
+
     def _check_account_status(self):
         if self.status == AccountStatus.FROZEN:
             raise AccountFrozenError
@@ -48,6 +48,7 @@ class AbstractAccount(ABC):
         if self.balance < amount:
             raise InsufficientFundsError
 
+    @abstractmethod
     def deposit(self, amount:int):
         self._check_account_status()
         self._check_operation_amount_type(amount)
@@ -63,6 +64,7 @@ class AbstractAccount(ABC):
         self._check_operation_amount(amount)
         self._check_withdraw_allowed(amount)
 
+    @abstractmethod
     def withdraw(self, amount:int):
         self._run_withdraw_checks(amount)
             
@@ -70,6 +72,7 @@ class AbstractAccount(ABC):
 
         return self.balance
 
+    @abstractmethod
     def get_account_info(self):
         return {
             'id' : self.id,
