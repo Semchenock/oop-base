@@ -62,7 +62,7 @@ class Bank:
             AccountCurrency.KZT: 0.0020,
             AccountCurrency.CNY: 0.14,
         }
-        self.transaction_queue = TransactionQueue()
+        self.transaction_queue = TransactionQueue(self)
         self.transaction_processor = TransactionProcessor(self, self.transaction_queue)
         self.audit_log = AuditLog()
         self.risk_analyzer = RiskAnalyzer(self.audit_log)

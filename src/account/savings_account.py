@@ -11,7 +11,7 @@ class SavingsAccount(BankAccount):
         if amount > self.balance - self.min_balance:
             raise InsufficientFundsError()
 
-    def withdraw(self, amount):
+    def withdraw(self, amount) -> int:
         super()._run_withdraw_checks(amount)
         return super().withdraw(amount)
     
