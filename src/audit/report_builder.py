@@ -73,6 +73,8 @@ class ReportBuilder:
                     "currency": log_data.currency.value,
                     "direction": log_data.direction.value,
                     "status": log_data.status.value,
+                    "risk": getattr(log_data.risk, "value", None),
+                    "reject_reason": log_data.reject_reason
                 }
                 for log_data in data
             ]

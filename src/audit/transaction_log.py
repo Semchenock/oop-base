@@ -10,7 +10,7 @@ from .enums import TransactionEntity, TransactionDirection, LogType, LogLevel, R
 
 
 class TransactionLog(BaseLog):
-    def __init__(self, entity: TransactionEntity, transaction_id: str, executed_at:datetime, created_at:datetime, amount: int, direction:TransactionDirection, currency: AccountCurrency, status:TransactionStatus, account_id=None, client_id=None, risk=None):
+    def __init__(self, entity: TransactionEntity, transaction_id: str, executed_at:datetime, created_at:datetime, amount: int, direction:TransactionDirection, currency: AccountCurrency, status:TransactionStatus, account_id=None, client_id=None, risk=None, reject_reason=None):
         super().__init__(log_type=LogType.TRANSACTION)
         self.entity: TransactionEntity = entity
         self.account_id: Optional[str] = account_id
@@ -23,6 +23,7 @@ class TransactionLog(BaseLog):
         self.direction:TransactionDirection = direction
         self.status: TransactionStatus = status
         self.risk: Optional[RiskLevel] = risk
+        self.reject_reason: Optional[str] = reject_reason
         self._resolve_level()
 
     def _resolve_level(self):
@@ -45,7 +46,8 @@ class TransactionLog(BaseLog):
             "direction": self.direction.value,
             "status": self.status.value,
             "currency": self.currency.value,
-            "risk": self.risk.value,
+            "risk": getattr(self.risk, "value", None),
+            "reject_reason": self.reject_reason,
         }
 
     def get_signed_amount(self) -> int:
