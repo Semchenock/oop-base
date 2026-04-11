@@ -23,13 +23,14 @@ class Transaction:
         self.to_account:AccountType = to_account
         self.priority:int = priority
         self.status:TransactionStatus = TransactionStatus.CREATED
-        self.reject_reason:Optional[Exception] = None
+        self.reject_reason:Optional[str] = None
         self.timestamp:datetime = datetime.now()
         self.transaction_id:str = str(uuid.uuid4())
         self.execute_time:Optional[datetime] = execute_time
 
     def cancel(self, reason: str = None, bank=None):
         self.status = TransactionStatus.CANCELED
+        self.reject_reason = reason
 
         if bank is not None:
             log = self._create_log(
@@ -118,10 +119,10 @@ class Transaction:
             bank.audit_log.add_log(log)
 
         except Exception as e:
-            self.reject_reason = e
+            self.reject_reason = str(e)
             self.status = TransactionStatus.REJECTED
 
-            log = self._create_log(status=TransactionStatus.REJECTED, **withdraw_log_args)
+            log = self._create_log(status=TransactionStatus.REJECTED, reject_reason=bank.audit_log.get_exception_message(e), **withdraw_log_args)
             bank.audit_log.add_log(log)
 
             return
@@ -133,10 +134,10 @@ class Transaction:
             bank.audit_log.add_log(log)
 
         except Exception as e:
-            self.reject_reason = e
+            self.reject_reason = str(e)
             self.status = TransactionStatus.REJECTED
 
-            log = self._create_log(status=TransactionStatus.REJECTED, **deposit_log_args)
+            log = self._create_log(status=TransactionStatus.REJECTED, reject_reason=bank.audit_log.get_exception_message(e), **deposit_log_args)
             bank.audit_log.add_log(log)
 
             try:
@@ -160,6 +161,7 @@ class Transaction:
                     account=self.from_account,
                     risk=RiskLevel.CRITICAL,
                     created_at=self.timestamp,
+                    reject_reason=bank.audit_log.get_exception_message(rollback_error)
                 )
                 bank.audit_log.add_log(critical_log)
 

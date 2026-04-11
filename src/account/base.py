@@ -17,7 +17,13 @@ class InsufficientFundsError(Exception):
     pass
 
 class AbstractAccount(ABC):
-    def __init__(self, owner_name: str, id: str, client_id: Optional[str] = None, status=AccountStatus.ACTIVE):
+    def __init__(self, owner_name: str, id: str, client_id: Optional[str] = None, status:AccountStatus =AccountStatus.ACTIVE):
+        if not id.strip():
+            raise ValueError("id must be a non-empty string")
+
+        if not owner_name.strip():
+            raise ValueError("owner_name must be a non-empty string")
+
         self.id:str = id
         self.client_id:Optional[str] = client_id
         self.owner_name:str = owner_name

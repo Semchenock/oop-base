@@ -1,13 +1,15 @@
 import uuid
+from typing import Optional
+
 from .base import AbstractAccount
 from .enums import AccountCurrency
 
 class BankAccount(AbstractAccount):
-    def __init__(self,  id=None, currency=AccountCurrency.RUB, *args, **kwargs):
+    def __init__(self,  id:Optional[str]=None, currency:AccountCurrency=AccountCurrency.RUB, *args, **kwargs):
         if id is None:
-            id = str(uuid.uuid4())
+            self.id = uuid.uuid4().hex[:8]
         
-        super().__init__(id=id, *args, **kwargs)
+        super().__init__(id=self.id, *args, **kwargs)
         self.currency:AccountCurrency = currency
 
     def get_account_info(self):

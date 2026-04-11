@@ -13,7 +13,7 @@ class RiskAnalyzer:
         self.audit_log = audit_log
 
     def analyze_transaction(self, transaction: Transaction, client: Client) -> RiskLevel:
-        large_amount = round(transaction.amount / MAX_AMOUNT_PER_OPERATION * LARGE_AMOUNT_COEFFICIENT)
+        large_amount = round((transaction.amount / MAX_AMOUNT_PER_OPERATION) * LARGE_AMOUNT_COEFFICIENT)
 
         operations_per_hour_count = self.audit_log.get_operations_per_hour_count(client.client_id)
         frequent_operations = operations_per_hour_count * FREQUENT_OPERATIONS_COEFFICIENT
@@ -26,7 +26,7 @@ class RiskAnalyzer:
 
         if total < 20:
             return RiskLevel.LOW
-        elif total < 60:
+        elif total < 160:
             return RiskLevel.MEDIUM
         else:
             return RiskLevel.HIGH

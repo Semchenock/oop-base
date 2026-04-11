@@ -37,6 +37,9 @@ class ProhibitedOperationTime(Exception):
 class ClientIsNotAdult(Exception):
     pass
 
+class DuplicateAccount(Exception):
+    pass
+
 class Session:
     def __init__(self, client_id: str):
         self.client_id:str = client_id
@@ -79,6 +82,9 @@ class Bank:
 
         if client is None:
             raise ClientNotFound
+
+        if any(acc.id == account.id for acc in self.accounts):
+            raise DuplicateAccount
 
         account.add_client_id(client_id)
         self.accounts.append(account)
@@ -247,7 +253,7 @@ class Bank:
 
         return  next((acc for acc in self.accounts if acc.id == account_id), None)
 
-    def _create_transaction_log(self, is_withdraw: bool, account, status, amount):
+    def _create_transaction_log(self, is_withdraw: bool, account: AccountType, status: TransactionStatus, amount: int, reject_reason: Optional[str] = None):
         transaction_id=str(uuid.uuid4())
 
         common_args={
@@ -257,6 +263,7 @@ class Bank:
             'amount': amount,
             'currency': account.currency,
             'status': status,
+            'reject_reason': reject_reason,
         }
 
         self.audit_log.add_log(TransactionLog(
@@ -293,7 +300,7 @@ class Bank:
             client_account.withdraw(amount)
             self._create_transaction_log(status = TransactionStatus.EXECUTED, **log_args)
         except Exception as e:
-            self._create_transaction_log(status=TransactionStatus.REJECTED, **log_args)
+            self._create_transaction_log(status=TransactionStatus.REJECTED, reject_reason=self.audit_log.get_exception_message(e), **log_args)
             raise e
 
     def deposit(self, session_id: str, account_id: str, amount: int):
@@ -315,10 +322,9 @@ class Bank:
             client_account.deposit(amount)
             self._create_transaction_log(status = TransactionStatus.EXECUTED, **log_args)
         except Exception as e:
-            self._create_transaction_log(status=TransactionStatus.REJECTED, **log_args)
+            self._create_transaction_log(status=TransactionStatus.REJECTED, reject_reason=self.audit_log.get_exception_message(e), **log_args)
             raise e
 
-    def convert_currency(self,amount: int, from_currency: AccountCurrency, to_currency: AccountCurrency) -> int:
-        amount_in_main_currency = amount / self.main_currency_course[from_currency]
-        amount_in_to_currency = amount_in_main_currency * self.main_currency_course[to_currency]
+    def convert_currency(self, amount: int, from_currency: AccountCurrency, to_currency: AccountCurrency) -> int:
+        amount_in_to_currency = amount * self.main_currency_course[from_currency] / self.main_currency_course[to_currency]
         return round(amount_in_to_currency)

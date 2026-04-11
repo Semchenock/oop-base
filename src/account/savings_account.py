@@ -2,7 +2,7 @@ from .bank_account import BankAccount
 from .base import InsufficientFundsError
 
 class SavingsAccount(BankAccount):
-    def __init__(self, min_balance=0, monthly_interest=0, *args, **kwargs):
+    def __init__(self, min_balance:int=0, monthly_interest:int=0, *args, **kwargs):
         super().__init__( *args, **kwargs)
         self.min_balance=min_balance
         self.monthly_interest=monthly_interest

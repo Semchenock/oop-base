@@ -13,7 +13,7 @@ class Asset:
         return f"{self.name}({self.asset_type}, price={self.price}, interest={self.yearly_interest}%)"
 
 class InvestmentAccount(BankAccount):
-    def __init__(self, assets, *args, **kwargs):
+    def __init__(self, assets:list[Asset], *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.assets:list[Asset] = assets
 
