@@ -15,6 +15,9 @@ class AuditLog:
     def add_log(self, log:LogEntity):
         self.logs.append(log)
 
+    def get_exception_message(self, error: Exception) -> str:
+        return f"{type(error).__name__}: {error}"
+
     def get_operations_per_hour_count(self, client_id: str) -> int:
         current_time = datetime.now()
         client_transactions = self.get_client_transactions(client_id)

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from matplotlib.figure import Figure
 
-from .enums import RiskLevel, TransactionDirection
+from .enums import RiskLevel
+from .transaction_log import TransactionLog
 from transaction.enums import TransactionStatus
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -102,7 +103,7 @@ class ReportBuilder:
             ]
         )
 
-    def _get_valid_client_transactions(self, client_id):
+    def _get_valid_client_transactions(self, client_id) -> list[TransactionLog]:
         client_transactions = self.bank.audit_log.get_client_transactions(client_id)
         valid_transactions = [t for t in client_transactions if t.status == TransactionStatus.EXECUTED and t.executed_at is not None]
         valid_transactions.sort(key=lambda x: x.executed_at)
@@ -114,31 +115,46 @@ class ReportBuilder:
     def plot_client_transactions_report(self, client_id) -> Figure:
         valid_transactions = self._get_valid_client_transactions(client_id)
 
-        points: list[dict] = [{
-            "date": valid_transactions[0].executed_at,
-            "amount": 0,
-        }]
+        transactions_by_accounts = {}
 
         for t in valid_transactions:
-            prev_point = points[-1]
-            prev_amount = 0 if prev_point is None else prev_point.get("amount", 0)
-            new_amount = prev_amount + (t.get_signed_amount())
-            points.append({"date": t.executed_at, "amount": new_amount})
+            account_id = t.account_id
+            transactions_by_accounts.setdefault(account_id, []).append(t)
 
-        df = pd.DataFrame(
-            [
-                {
-                    "date": point.get("date"),
-                    "amount": point.get("amount"),
-                }
-                for point in points
-            ]
-        )
+        points_by_account = {}
+
+        for account_id, transactions in transactions_by_accounts.items():
+            account = self.bank.get_account(account_id)
+            start_point_amount = account.balance - sum((t.get_signed_amount() for t in transactions))
+            points_by_account[account_id] = [{
+                "date": transactions[0].executed_at,
+                "amount": start_point_amount,
+            }]
+
+            points = points_by_account[account_id]
+
+            for t in transactions:
+                prev_point = points[-1]
+                prev_amount = prev_point["amount"]
+                new_amount = prev_amount + (t.get_signed_amount())
+                points.append({"date": t.executed_at, "amount": new_amount})
 
         fig, ax = plt.subplots()
 
-        ax.plot(df["date"], df["amount"])
+        for account_id, points in points_by_account.items():
+            df = pd.DataFrame(
+                [
+                    {
+                        "date": point.get("date"),
+                        "amount": point.get("amount"),
+                    }
+                    for point in points
+                ]
+            )
 
+            ax.plot(df["date"], df["amount"], label=f"Account {account_id}")
+
+        ax.legend()
         ax.set_xlabel("Date")
         ax.set_ylabel("Amount")
         ax.set_title("Client Balance Over Time")
@@ -186,6 +202,8 @@ class ReportBuilder:
             "income_expenses": self.plot_client_income_expenses_report(client_id),
             "accounts_distribution": self.plot_client_accounts_balance_report(client_id),
         }
+
+        self.plot_client_transactions_report(client_id).show()
 
         for name, fig in charts.items():
             fig.savefig(f"{path}_{name}.png")
